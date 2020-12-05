@@ -7,7 +7,8 @@ Created on Sun Jul 21 17:14:23 2019
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import copy
+import numbers
 
 def rm_ext_and_nan(CTG_features, extra_feature):
     """
@@ -17,7 +18,19 @@ def rm_ext_and_nan(CTG_features, extra_feature):
     :return: A dictionary of clean CTG called c_ctg
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    # CTG_features = CTG_features.drop(columns=extra_feature)
+    # CTG_features = CTG_features.applymap(lambda x: np.where(isinstance(x, numbers.Number), x, np.nan))
+    # c_ctg = copy.copy(CTG_features.to_dict())
+    # c_ctg = {k1: list({k2: v2 for k2, v2 in v1.items() if isinstance(v2, numbers.Number)}.values()) for k1, v1 in
+    #          c_ctg.items()}
+    CTG_features=CTG_features.drop(columns=extra_feature)
+    CTG_features=CTG_features.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
 
+    c_ctg = copy.copy(CTG_features.to_dict())
+    new_dict = {}
+    for key1, value1 in c_ctg.items():
+        new_dict.update({key1: [value2 for key2, value2 in value1.items() if (type(value2)==int or type(value2)==float)]})
+    c_ctg = new_dict
     # --------------------------------------------------------------------------
     return c_ctg
 
@@ -31,6 +44,11 @@ def nan2num_samp(CTG_features, extra_feature):
     """
     c_cdf = {}
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    CTG_features = CTG_features.drop(columns=extra_feature)
+    CTG_features = CTG_features.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
+    for key1 in CTG_features.columns:
+        value1 = list(CTG_features[key1].dropna().values)
+        c_cdf[key1] = CTG_features[key1].fillna(pd.Series(np.random.choice(value1, size=len(value1))))
 
     # -------------------------------------------------------------------------
     return pd.DataFrame(c_cdf)
@@ -43,6 +61,8 @@ def sum_stat(c_feat):
     :return: Summary statistics as a dicionary of dictionaries (called d_summary) as explained in the notebook
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+    d_summary = {}
+
 
     # -------------------------------------------------------------------------
     return d_summary
