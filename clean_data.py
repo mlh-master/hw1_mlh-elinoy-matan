@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import copy
-import numbers
+
 
 def rm_ext_and_nan(CTG_features, extra_feature):
     """
@@ -18,14 +18,8 @@ def rm_ext_and_nan(CTG_features, extra_feature):
     :return: A dictionary of clean CTG called c_ctg
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
-    # CTG_features = CTG_features.drop(columns=extra_feature)
-    # CTG_features = CTG_features.applymap(lambda x: np.where(isinstance(x, numbers.Number), x, np.nan))
-    # c_ctg = copy.copy(CTG_features.to_dict())
-    # c_ctg = {k1: list({k2: v2 for k2, v2 in v1.items() if isinstance(v2, numbers.Number)}.values()) for k1, v1 in
-    #          c_ctg.items()}
     CTG_features=CTG_features.drop(columns=extra_feature)
     CTG_features=CTG_features.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
-
     c_ctg = copy.copy(CTG_features.to_dict())
     new_dict = {}
     for key1, value1 in c_ctg.items():
@@ -62,8 +56,12 @@ def sum_stat(c_feat):
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
     d_summary = {}
-
-
+    for col in c_feat:
+        small_dict = {'min': 0, '25%': 0, '50%': 0, '75%': 0, 'max': 0}
+        Q = pd.DataFrame(c_feat[col])
+        for key in small_dict:
+            small_dict[key] = Q.describe().loc[key].values[0]
+        d_summary[col] = small_dict
     # -------------------------------------------------------------------------
     return d_summary
 
@@ -77,9 +75,18 @@ def rm_outlier(c_feat, d_summary):
     """
     c_no_outlier = {}
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
-
-    # -------------------------------------------------------------------------
+    for feat in d_summary:
+        LF, UF = CalculateBoundaries(d_summary[feat])
+        temp = c_feat[feat]
+        c_no_outlier[feat] = temp[(temp <= UF) & (temp >= LF)]
     return pd.DataFrame(c_no_outlier)
+
+def CalculateBoundaries(feat_summary):
+    IQR = feat_summary['75%'] - feat_summary['25%']
+    LF = feat_summary['25%'] - 1.5 * IQR
+    UF = feat_summary['75%'] + 1.5 * IQR
+    return LF, UF
+
 
 
 def phys_prior(c_cdf, feature, thresh):
@@ -91,7 +98,8 @@ def phys_prior(c_cdf, feature, thresh):
     :return: An array of the "filtered" feature called filt_feature
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:-----------------------------
-
+    temp = c_cdf.loc[:, feature].to_numpy()
+    filt_feature = temp[temp < thresh]
     # -------------------------------------------------------------------------
     return filt_feature
 
@@ -107,6 +115,30 @@ def norm_standard(CTG_features, selected_feat=('LB', 'ASTV'), mode='none', flag=
     """
     x, y = selected_feat
     # ------------------ IMPLEMENT YOUR CODE HERE:------------------------------
+
+    if mode == 'standard':
+        # Standardization
+        nsd_res = (CTG_features - CTG_features.mean()) / (CTG_features.std())
+    elif mode == 'MinMax':
+        # MinMax scaling / Normalization
+        nsd_res = (CTG_features - CTG_features.min()) / (CTG_features.max() - CTG_features.min())
+    elif mode == 'mean':
+        # mean normalization
+        nsd_res = (CTG_features - CTG_features.mean()) / (CTG_features.max() - CTG_features.min())
+    else:
+        nsd_res = CTG_features
+
+    if flag:
+        plt.title(mode, fontsize=20)
+        CTG_features.loc[:, x].hist(bins=50, figsize=(15, 10), label='Original Data')
+        nsd_res.loc[:, x].hist(bins=50, figsize=(15, 10), label='Scaled Data')
+        plt.xlabel(x, fontsize=20)
+        plt.ylabel('count', fontsize=20)
+        plt.legend(loc='upper right', fontsize=20)
+        plt.show()
+        plt.title(mode, fontsize=30)
+        CTG_features.loc[:, y].hist(bins=50, figsize=(15, 10), label='Original Data')
+        nsd_res.loc[:, y]
 
     # -------------------------------------------------------------------------
     return pd.DataFrame(nsd_res)

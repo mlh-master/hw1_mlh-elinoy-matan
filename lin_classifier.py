@@ -1,10 +1,10 @@
+import pandas as pd
+import scipy.stats as stats
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import StratifiedKFold as SKFold
 from sklearn.metrics import log_loss
 from sklearn.linear_model import LogisticRegression
-import pandas as pd
-import scipy.stats as stats
 from clean_data import norm_standard as nsd
 
 
@@ -19,6 +19,13 @@ def pred_log(logreg, X_train, y_train, X_test, flag=False):
     :return: A two elements tuple containing the predictions and the weightning matrix
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:-----------------------------
+    logreg.fit(X_train, y_train)
+    w_log = logreg.coef_
+
+    if flag:
+        y_pred_log = logreg.predict_proba(X_test)
+    else:
+        y_pred_log = logreg.predict(X_test)
 
     # -------------------------------------------------------------------------
     return y_pred_log, w_log
@@ -73,6 +80,33 @@ def cv_kfold(X, y, C, penalty, K, mode):
     :param mode: Mode of normalization (parameter of norm_standard function in clean_data module)
     :return: A dictionary as explained in the notebook
     """
+
+    kf = SKFold(n_splits=K)
+    validation_dict = []
+    temp = {}
+    for c in C:
+        for p in penalty:
+            temp['C'] = c
+            temp['penalty'] = p
+            logreg = LogisticRegression(solver='saga', penalty=p, C=c, max_iter=10000, multi_class='ovr')
+            loss_val_vec = np.zeros(K)
+            k = 0
+            for train_idx, val_idx in kf.split(X, y):
+                x_train, x_val = X.iloc[train_idx], X.iloc[val_idx]
+                y_train, y_test = y[train_idx], y[val_idx]
+                y_pred, _ = pred_log(logreg, nsd(x_train, mode=mode, flag=False), y_train,
+                                     nsd(x_val, mode=mode, flag=False), flag=True)
+                all_classes = logreg.classes_
+                loss_val_vec[k] = log_loss(y_test, y_pred, labels=all_classes)
+                k += 1
+
+            temp['mu'] = loss_val_vec.mean()
+            temp['sigma'] = loss_val_vec.std()
+            validation_dict.append(temp)
+            temp = {}
+
+    return validation_dict
+
     kf = SKFold(n_splits=K)
     validation_dict = []
     for c in C:
@@ -82,9 +116,7 @@ def cv_kfold(X, y, C, penalty, K, mode):
             k = 0
             for train_idx, val_idx in kf.split(X, y):
                 x_train, x_val = X.iloc[train_idx], X.iloc[val_idx]
-        # ------------------ IMPLEMENT YOUR CODE HERE:-----------------------------
 
-        # --------------------------------------------------------------------------
     return validation_dict
 
 
@@ -98,6 +130,12 @@ def odds_ratio(w, X, selected_feat='LB'):
              odds_ratio: the odds ratio of the selected feature and label
     """
     # ------------------ IMPLEMENT YOUR CODE HERE:-----------------------------
+    w = w[0]
+    i = X.columns.get_loc(selected_feat)
+    odd_ratio = np.exp(w[i])
+
+    X = X.to_numpy()
+    odds = np.median(np.exp(X @ w))
 
     # --------------------------------------------------------------------------
 
